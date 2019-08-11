@@ -2,6 +2,7 @@ import React, { useEffect, useState, MouseEvent } from 'react';
 import logo from './logo.svg';
 import './App.css';
 import Web3 from 'web3';
+import { SdkManager } from '@radarrelay/sdk';
 
 /*
 from https://developers.radarrelay.com/api/feed-api/tokens
