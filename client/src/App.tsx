@@ -1,8 +1,19 @@
 import React, { useEffect, useState, MouseEvent } from 'react';
 import logo from './logo.svg';
 import './App.css';
-import Web3 from 'web3';
+import {
+    assetDataUtils,
+    BigNumber,
+    ContractWrappers,
+    generatePseudoRandomSalt,
+    Order,
+    orderHashUtils,
+    signatureUtils,
+    Web3ProviderEngine
+} from '0x.js';
 
+
+// Data used from api()
 /*
 exchange address
 from https://developers.radarrelay.com/api/feed-api/tokens
@@ -40,10 +51,14 @@ https://api.radarrelay.com/v2/markets/ZRX-WETH/fills
 }
 */
 
+// read window.ethereum in Typescript & start web3 instance
 declare let window: any;
-const web3 = new Web3(Web3.givenProvider);
+
+// varaibles used in pushOrder()
 const ZRXmarket: string = "0xe41d2489571d322189246dafa5ebde1f4699f498";
 const feeAddress: string = "0xa258b39954cef5cb142fd567a46cddb31a670124".toLowerCase();
+const pe = new Web3ProviderEngine();
+const fulcrumAddress: string = "0xf6FEcD318228f018Ac5d50E2b7E05c60267Bd4Cd".toLowerCase(); // replace with Fulcrum address
 
 interface Item {
   baseTokenAddress: string
@@ -64,16 +79,13 @@ interface Item {
 }
 
 const App: React.FC = () => {
+  // hook to read user input 0x amount wanted
   const [amount, setAmount] = useState(0);
-  const [account, setAccount] = useState('');
-  const [web3enabled, setWeb3enabled] = useState(false);
-  const [makerBalance, setMakerBalance] = useState(0);
-  const [takerBalance, setTakerBalance] = useState(0);
 
+  // used to fetch required information used in Order
   async function api(): Promise<void> {
     try {
       let res = await fetch(`https://api.radarrelay.com/v2/markets/ZRX-WETH/fills`);
-
       let json = await res.json()
       let sell = json.filter( function(item: Item){return (item.type=="SELL");} );
       console.log(json);
@@ -83,65 +95,43 @@ const App: React.FC = () => {
     }
   }
 
-  function handleEnableWeb3(e: MouseEvent<HTMLButtonElement>) {
-    e.preventDefault();
-    return enableWeb3();
-  }
-
-  async function enableWeb3(): Promise<void> {
-    try {
-
-    } catch (err) {
-      console.log(err);
-    }
-  }
-
+  // for typescript syntax for handling events
   function handleSubmit(e: MouseEvent<HTMLButtonElement>) {
     e.preventDefault();
     return requestOrders();
   }
 
-  function handleSignature(address: string): Promise<any> {
-    return new Promise(function(resolve, reject) {
-      try {
-        //const signature = eth.personal_sign(fromAddress, hexEncodedUtf8Message)
-        const signature = window.web3.personal.sign(
-          `I approve this order`,
-          address,
-          function (err: any, result: any) {
-            if (err) return console.error(err)
-            console.log('PERSONAL SIGNED:' + result);
-            resolve(result);
-          }
-        );
-      } catch (err) {
-        console.log(err);
-        throw new Error('You need to sign the message to be able to log in.');
-      }
-    })
-  }
-
-  async function pushOrder(quantity: number, sender: string, filler: string, signature: string): Promise<void> {
-    console.log(sender);
-    console.log(filler);
+  // POSTs individual orders
+  async function pushOrder(quantity: number, maker: string, taker: string): Promise<void> {
     try {
-      let order = {
+      // ready order, unsigned. Set type to any to bypass bug where getOrderHashHex() wants a full signedOrder object
+      let order: any = {
           exchangeAddress: ZRXmarket,
           expirationTimeSeconds: Math.trunc((Date.now() + 1000*60*60*24*7)/1000), // timestamp for expiration in seconds, here set to 1 week
-          senderAddress: sender, // addresses must be sent in lowercase
+          senderAddress: maker, // addresses must be sent in lowercase
           makerFee: 0,
-          makerAddress: sender,
+          makerAddress: maker,
           makerAssetAmount: quantity*10e18, // All token amounts are sent in amounts of the smallest level of precision (base units). (e.g if a token has 18 decimal places, selling 1 token would show up as selling '1000000000000000000' units by this API).
           takerFee: 0,
-          takerAddress: filler,
+          takerAddress: taker,
           takerAssetAmount: quantity*10e18,
           salt: Date.now(),
           feeRecipientAddress: feeAddress, // fee address is address of relayer
-          signature: signature,
           makerAssetData: '0xf47261b00000000000000000000000001dc4c1cefef38a777b15aa20260a54e584b16c48',
-          takerAssetData: '0xf47261b00000000000000000000000001dc4c1cefef38a777b15aa20260a54e584b16c48'
+          takerAssetData: '0xf47261b00000000000000000000000001dc4c1cefef38a777b15aa20260a54e584b16c48',
       };
 
+      // use orderHashUtils to ready for a signature, where the order object becomes complete with the signature
+      const orderHashHex = orderHashUtils.getOrderHashHex(order);
+
+      // signature is required to confirm the sender owns the private key to the maker public address
+      // API throws error if incorrect signature is provided
+      const signature = await signatureUtils.ecSignHashAsync(pe, orderHashHex, maker);
+
+      // append signature to order object
+      const signedOrder = { ...order, signature };
+
+      // Submit order
       let res = await fetch(`https://api.radarrelay.com/v2/orders`, {
         method: 'POST', // *GET, POST, PUT, DELETE, etc.
         headers: {
@@ -150,7 +140,7 @@ const App: React.FC = () => {
         },
         redirect: 'follow', // manual, *follow, error
         referrer: 'no-referrer', // no-referrer, *client
-        body: JSON.stringify(order), // body data type must match "Content-Type" header
+        body: JSON.stringify(signedOrder), // body data type must match "Content-Type" header
       });
       console.log(await res.json)
     } catch (err) {
@@ -158,35 +148,55 @@ const App: React.FC = () => {
     }
   }
 
-
-
+  // parent Order action
   async function requestOrders(): Promise<void> {
     try {
       // enable metamask
       const accounts = await window.ethereum.enable()
-      setAccount(accounts[0]);
-      console.log(account);
-      // sign order
-      let signature = await handleSignature(accounts[0]);
 
+      // GET's liquidity (but and sell orders)
       let res1 = await fetch(`https://api.radarrelay.com/v2/markets/ZRX-WETH/fills`);
       let json = await res1.json()
+
+      // sort only available sell orders to buy
       let liquidity = json.filter( function(item: Item){return (item.type=="SELL");} );
       console.log(liquidity);
 
+      // set initial remaining value as user input order amount, and initiate current sell order index
       let remaining = amount;
       let cycle = 0
 
       while (remaining > 0) {
-        let available = liquidity[cycle].filledBaseTokenAmount
+        // get sell amount for cheapest order
+        let available = liquidity[cycle].filledBaseTokenAmount;
+
+
+
+
+        if (available === null) {
+          // if we run out of liquidity, make Fulcrum the taker
+          pushOrder(remaining, accounts[0], fulcrumAddress);
+        };
+
         if (available < remaining) {
-          pushOrder(available, accounts[0], liquidity[cycle].makerAddress, signature);
+          // if amount is greater than current existing sell order
+
+          pushOrder(available,
+          accounts[0],
+          liquidity[cycle].makerAddress)
+
+          // decrease remaining balance by current sell order amount
           remaining = remaining - available;
         } else {
-          pushOrder(remaining, accounts[0], liquidity[cycle].makerAddress, signature);
+          // if buy order will be filled with this current sell order
+          pushOrder(remaining, accounts[0], liquidity[cycle].makerAddress);
+
+          // set remaining balance to 0 to exit loop
           remaining = 0;
           console.log('done')
         }
+
+        // move to next order
         cycle++;
       }
     } catch (err) {
@@ -195,11 +205,9 @@ const App: React.FC = () => {
   }
 
   useEffect(()=>{
+    // used for fetching data of exchange address and fee address, can be removed
     api()
   }, []);
-
-  console.log(account);
-  console.log(amount);
 
   return (
     <div className="App">
