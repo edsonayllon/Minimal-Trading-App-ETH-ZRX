@@ -58,3 +58,11 @@ Margin is borrowed money used to purchase an asset.
 Margin trading refers to using borrowed funds to trade a financial asset, which forms collateral for the loan from the lender.
 
 The collateralized loan comes with a periodic interest rate that the investor must repay to the lender.
+
+### Maker
+
+Account creating an order.
+
+### Taker
+
+Account filling an order.
