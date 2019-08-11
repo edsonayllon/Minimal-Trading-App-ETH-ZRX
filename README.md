@@ -34,4 +34,27 @@ struct Order0x {
 
 Reference: https://github.com/bZxNetwork/bZx-monorepo/blob/development/packages/contracts/contracts/zeroex/BZxTo0xV2.sol
 
+## Trading Concepts
 
+Fulcrum is a platform that allows short and long selling.
+
+### Short Selling
+
+A short sell predicts a market will go down, instead of up.
+
+1. Short sellers buy by borrowing assets and selling at market price
+2. Once the price drops, the short seller buys the asset again, and returns it to the lender
+
+For example, selling $10,000 of borrowed asset for $10/fungible item. If cost goes down to $7/fungible item, the short seller profits $3000.
+
+### Long Selling
+
+A trader buys shares hoping to sell at a higher price.
+
+### Margin Trade
+
+Margin is borrowed money used to purchase an asset.
+
+Margin trading refers to using borrowed funds to trade a financial asset, which forms collateral for the loan from the lender.
+
+The collateralized loan comes with a periodic interest rate that the investor must repay to the lender.
