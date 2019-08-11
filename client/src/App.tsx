@@ -113,7 +113,9 @@ const App: React.FC = () => {
           takerAssetAmount: quantity,
           salt: Date.now(),
           feeRecipientAddress: fulcrumAddress,
-          signature: signature
+          signature: signature,
+          makerAssetData: '0xf47261b00000000000000000000000001dc4c1cefef38a777b15aa20260a54e584b16c48',
+          takerAssetData: '0xf47261b00000000000000000000000001dc4c1cefef38a777b15aa20260a54e584b16c48'
       };
 
       let res = await fetch(`https://api.radarrelay.com/v2/orders`, {
@@ -160,31 +162,6 @@ const App: React.FC = () => {
         }
         cycle++;
       }
-
-      // create order
-      let order = {
-          exchangeAddress: ZRXmarket,
-          expirationTimeSeconds: 1527115521,
-          senderAddress: account,
-          makerFee: 0,
-          makerAddress: fulcrumAddress,
-          makerAssetAmount: makerBalance,
-          takerFee: 0,
-          takerAddress: account,
-          takerAssetAmount: takerBalance,
-          salt: Date.now(),
-          feeRecipientAddress: fulcrumAddress,
-          signature: signature
-      };
-
-      let res = await fetch(`https://api.radarrelay.com/v2/orders`, {
-        method: 'POST', // *GET, POST, PUT, DELETE, etc.
-        headers: {
-            'Content-Type': 'application/json',
-            // 'Content-Type': 'application/x-www-form-urlencoded',
-        },
-        body: JSON.stringify(order), // body data type must match "Content-Type" header
-      })
     } catch (err) {
       console.log(err);
     }
