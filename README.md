@@ -37,7 +37,7 @@ Reference: https://github.com/bZxNetwork/bZx-monorepo/blob/development/packages/
 
 ## Running Frontend Client
 
-This app requires metamask. ZRX testnet tokens can be generated using ETH testnet tokens.
+This app requires metamask. A test network can be used (optional).
 
 1. Set Metamask network to a testnetwork (here Kovan will be used)
 2. Acquire testnet tokens (One Kovan faucet found at https://faucet.kovan.network/)
