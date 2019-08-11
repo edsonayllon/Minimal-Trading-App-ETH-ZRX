@@ -4,6 +4,7 @@ import './App.css';
 import Web3 from 'web3';
 
 /*
+exchange address
 from https://developers.radarrelay.com/api/feed-api/tokens
 token = {
   active: 1
@@ -17,10 +18,32 @@ token = {
 }
 */
 
+/*
+fee recipients
+https://api.radarrelay.com/v2/markets/ZRX-WETH/fills
+{
+  baseTokenAddress: "0xe41d2489571d322189246dafa5ebde1f4699f498"
+  blockNumber: 8320353
+  feeRecipientAddress: "0xa258b39954cef5cb142fd567a46cddb31a670124"
+  filledBaseTokenAmount: "500"
+  filledQuoteTokenAmount: "0.457"
+  makerAddress: "0x395d48020ef5e29168706e16258db6c6c4d7d317"
+  makerFeePaid: "0"
+  orderHash: "0x14da0f76eecf0f97c3d7e422ba948bb3fc5db9c0b91a8b1af0573f63ea79e0f0"
+  outlier: false
+  quoteTokenAddress: "0xc02aaa39b223fe8d0a0e5c4f27ead9083c756cc2"
+  takerAddress: "0x85c5c26dc2af5546341fc1988b9d178148b4838b"
+  takerFeePaid: "0"
+  timestamp: 1565406696
+  transactionHash: "0xb2165429622103311d868c8d8f3936d833825799e80faaeaa7e6a6f9dd9f087e"
+  type: "BUY"
+}
+*/
+
 declare let window: any;
 const web3 = new Web3(Web3.givenProvider);
 const ZRXmarket: string = "0xe41d2489571d322189246dafa5ebde1f4699f498";
-const fulcrumAddress: string = "0xf6FEcD318228f018Ac5d50E2b7E05c60267Bd4Cd";
+const feeAddress: string = "0xa258b39954cef5cb142fd567a46cddb31a670124".toLowerCase();
 
 interface Item {
   baseTokenAddress: string
@@ -98,21 +121,22 @@ const App: React.FC = () => {
     })
   }
 
-  async function pushOrder(quantity: number, signature: string): Promise<void> {
+  async function pushOrder(quantity: number, sender: string, filler: string, signature: string): Promise<void> {
+    console.log(sender);
+    console.log(filler);
     try {
-      // create order
       let order = {
           exchangeAddress: ZRXmarket,
-          expirationTimeSeconds: 1527115521,
-          senderAddress: account,
+          expirationTimeSeconds: Math.trunc((Date.now() + 1000*60*60*24*7)/1000), // timestamp for expiration in seconds, here set to 1 week
+          senderAddress: sender, // addresses must be sent in lowercase
           makerFee: 0,
-          makerAddress: account,
-          makerAssetAmount: quantity,
+          makerAddress: sender,
+          makerAssetAmount: quantity*10e18, // All token amounts are sent in amounts of the smallest level of precision (base units). (e.g if a token has 18 decimal places, selling 1 token would show up as selling '1000000000000000000' units by this API).
           takerFee: 0,
-          takerAddress: fulcrumAddress,
-          takerAssetAmount: quantity,
+          takerAddress: filler,
+          takerAssetAmount: quantity*10e18,
           salt: Date.now(),
-          feeRecipientAddress: fulcrumAddress,
+          feeRecipientAddress: feeAddress, // fee address is address of relayer
           signature: signature,
           makerAssetData: '0xf47261b00000000000000000000000001dc4c1cefef38a777b15aa20260a54e584b16c48',
           takerAssetData: '0xf47261b00000000000000000000000001dc4c1cefef38a777b15aa20260a54e584b16c48'
@@ -127,11 +151,14 @@ const App: React.FC = () => {
         redirect: 'follow', // manual, *follow, error
         referrer: 'no-referrer', // no-referrer, *client
         body: JSON.stringify(order), // body data type must match "Content-Type" header
-      })
+      });
+      console.log(await res.json)
     } catch (err) {
       console.log(err)
     }
   }
+
+
 
   async function requestOrders(): Promise<void> {
     try {
@@ -153,10 +180,10 @@ const App: React.FC = () => {
       while (remaining > 0) {
         let available = liquidity[cycle].filledBaseTokenAmount
         if (available < remaining) {
-          pushOrder(available, signature);
+          pushOrder(available, accounts[0], liquidity[cycle].makerAddress, signature);
           remaining = remaining - available;
         } else {
-          pushOrder(remaining, signature);
+          pushOrder(remaining, accounts[0], liquidity[cycle].makerAddress, signature);
           remaining = 0;
           console.log('done')
         }
