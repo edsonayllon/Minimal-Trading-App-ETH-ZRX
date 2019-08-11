@@ -172,6 +172,8 @@ const App: React.FC = () => {
         if (available < remaining) {
           // if amount is greater than current existing sell order
 
+          //
+          setTimeout(()=>{}, 501); // each browser can only send 2 requests per second in Radar Relay API
           pushOrder(available, accounts[0], liquidity[cycle].makerAddress)
 
           // decrease remaining balance by current sell order amount
