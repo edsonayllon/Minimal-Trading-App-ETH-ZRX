@@ -4,6 +4,7 @@ import './App.css';
 import Web3 from 'web3';
 
 /*
+from https://developers.radarrelay.com/api/feed-api/tokens
 token = {
   active: 1
   address: "0xe41d2489571d322189246dafa5ebde1f4699f498"
@@ -20,228 +21,24 @@ declare let window: any;
 const web3 = new Web3(Web3.givenProvider);
 const ZRXmarket: string = "0xe41d2489571d322189246dafa5ebde1f4699f498";
 const fulcrumAddress: string = "0x129D6b5Eba82F2ca348B3F8B218F9F20Add14Ad5";
-const erc20Abi = [
-    {
-        "constant": true,
-        "inputs": [],
-        "name": "name",
-        "outputs": [
-            {
-                "name": "",
-                "type": "string"
-            }
-        ],
-        "payable": false,
-        "stateMutability": "view",
-        "type": "function"
-    },
-    {
-        "constant": false,
-        "inputs": [
-            {
-                "name": "_spender",
-                "type": "address"
-            },
-            {
-                "name": "_value",
-                "type": "uint256"
-            }
-        ],
-        "name": "approve",
-        "outputs": [
-            {
-                "name": "",
-                "type": "bool"
-            }
-        ],
-        "payable": false,
-        "stateMutability": "nonpayable",
-        "type": "function"
-    },
-    {
-        "constant": true,
-        "inputs": [],
-        "name": "totalSupply",
-        "outputs": [
-            {
-                "name": "",
-                "type": "uint256"
-            }
-        ],
-        "payable": false,
-        "stateMutability": "view",
-        "type": "function"
-    },
-    {
-        "constant": false,
-        "inputs": [
-            {
-                "name": "_from",
-                "type": "address"
-            },
-            {
-                "name": "_to",
-                "type": "address"
-            },
-            {
-                "name": "_value",
-                "type": "uint256"
-            }
-        ],
-        "name": "transferFrom",
-        "outputs": [
-            {
-                "name": "",
-                "type": "bool"
-            }
-        ],
-        "payable": false,
-        "stateMutability": "nonpayable",
-        "type": "function"
-    },
-    {
-        "constant": true,
-        "inputs": [],
-        "name": "decimals",
-        "outputs": [
-            {
-                "name": "",
-                "type": "uint8"
-            }
-        ],
-        "payable": false,
-        "stateMutability": "view",
-        "type": "function"
-    },
-    {
-        "constant": true,
-        "inputs": [
-            {
-                "name": "_owner",
-                "type": "address"
-            }
-        ],
-        "name": "balanceOf",
-        "outputs": [
-            {
-                "name": "balance",
-                "type": "uint256"
-            }
-        ],
-        "payable": false,
-        "stateMutability": "view",
-        "type": "function"
-    },
-    {
-        "constant": true,
-        "inputs": [],
-        "name": "symbol",
-        "outputs": [
-            {
-                "name": "",
-                "type": "string"
-            }
-        ],
-        "payable": false,
-        "stateMutability": "view",
-        "type": "function"
-    },
-    {
-        "constant": false,
-        "inputs": [
-            {
-                "name": "_to",
-                "type": "address"
-            },
-            {
-                "name": "_value",
-                "type": "uint256"
-            }
-        ],
-        "name": "transfer",
-        "outputs": [
-            {
-                "name": "",
-                "type": "bool"
-            }
-        ],
-        "payable": false,
-        "stateMutability": "nonpayable",
-        "type": "function"
-    },
-    {
-        "constant": true,
-        "inputs": [
-            {
-                "name": "_owner",
-                "type": "address"
-            },
-            {
-                "name": "_spender",
-                "type": "address"
-            }
-        ],
-        "name": "allowance",
-        "outputs": [
-            {
-                "name": "",
-                "type": "uint256"
-            }
-        ],
-        "payable": false,
-        "stateMutability": "view",
-        "type": "function"
-    },
-    {
-        "payable": true,
-        "stateMutability": "payable",
-        "type": "fallback"
-    },
-    {
-        "anonymous": false,
-        "inputs": [
-            {
-                "indexed": true,
-                "name": "owner",
-                "type": "address"
-            },
-            {
-                "indexed": true,
-                "name": "spender",
-                "type": "address"
-            },
-            {
-                "indexed": false,
-                "name": "value",
-                "type": "uint256"
-            }
-        ],
-        "name": "Approval",
-        "type": "event"
-    },
-    {
-        "anonymous": false,
-        "inputs": [
-            {
-                "indexed": true,
-                "name": "from",
-                "type": "address"
-            },
-            {
-                "indexed": true,
-                "name": "to",
-                "type": "address"
-            },
-            {
-                "indexed": false,
-                "name": "value",
-                "type": "uint256"
-            }
-        ],
-        "name": "Transfer",
-        "type": "event"
-    }
-]
+
+interface Item {
+  baseTokenAddress: string
+  blockNumber: number
+  feeRecipientAddress: string
+  filledBaseTokenAmount: string
+  filledQuoteTokenAmount: string
+  makerAddress: string
+  makerFeePaid: string
+  orderHash: string
+  outlier: boolean
+  quoteTokenAddress: string
+  takerAddress: string
+  takerFeePaid: string
+  timestamp: number
+  transactionHash: string
+  type: string
+}
 
 const App: React.FC = () => {
   const [amount, setAmount] = useState(0);
@@ -253,8 +50,11 @@ const App: React.FC = () => {
   async function api(): Promise<void> {
     try {
       let res = await fetch(`https://api.radarrelay.com/v2/markets/ZRX-WETH/fills`);
+
       let json = await res.json()
+      let sell = json.filter( function(item: Item){return (item.type=="SELL");} );
       console.log(json);
+      console.log(sell)
     } catch (err) {
       console.log(err);
     }
@@ -267,48 +67,116 @@ const App: React.FC = () => {
 
   async function enableWeb3(): Promise<void> {
     try {
-      const accounts = await window.ethereum.enable()
-      setAccount(accounts[0]);
 
-      if (accounts[0]) {
-        setWeb3enabled(true)
-      }
     } catch (err) {
       console.log(err);
     }
   }
 
-  function handleSubmit() {
-
+  function handleSubmit(e: MouseEvent<HTMLButtonElement>) {
+    e.preventDefault();
+    return requestOrders();
   }
 
-  async function getAssetAmount() {
-    const address = '0xe41d2489571d322189246dafa5ebde1f4699f498'; // ZRX
-    const contract = new web3.eth.Contract(erc20Abi, address);
-    const accounts = await window.ethereum.enable();
-    const maker = await contract.methods.balanceOf(accounts[0]).call();
-    setMakerBalance(maker);
-    const taker = await contract.methods.balanceOf(fulcrumAddress).call();
-    setTakerBalance(taker);
+  function handleSignature(address: string): Promise<any> {
+    return new Promise(function(resolve, reject) {
+      try {
+        //const signature = eth.personal_sign(fromAddress, hexEncodedUtf8Message)
+        const signature = window.web3.personal.sign(
+          `I approve this order`,
+          address,
+          function (err: any, result: any) {
+            if (err) return console.error(err)
+            console.log('PERSONAL SIGNED:' + result);
+            resolve(result);
+          }
+        );
+      } catch (err) {
+        console.log(err);
+        throw new Error('You need to sign the message to be able to log in.');
+      }
+    })
   }
 
-  async function order(): Promise<void> {
-    getAssetAmount()
+  async function pushOrder(quantity: number, signature: string): Promise<void> {
     try {
+      // create order
       let order = {
           exchangeAddress: ZRXmarket,
           expirationTimeSeconds: 1527115521,
           senderAddress: account,
           makerFee: 0,
           makerAddress: fulcrumAddress,
-          makerAssetAmount: "20000000000000000",
+          makerAssetAmount: makerBalance,
           takerFee: 0,
           takerAddress: account,
-          takerAssetAmount: amount,
+          takerAssetAmount: quantity,
           salt: Date.now(),
           feeRecipientAddress: fulcrumAddress,
-          signature: "0x396a20a0589a7b9189f0d90ad377d7fd32d25d380402dc85954c227391fcc1c1"
+          signature: signature
       };
+
+      let res = await fetch(`https://api.radarrelay.com/v2/orders`, {
+        method: 'POST', // *GET, POST, PUT, DELETE, etc.
+        headers: {
+            'Content-Type': 'application/json',
+            // 'Content-Type': 'application/x-www-form-urlencoded',
+        },
+        redirect: 'follow', // manual, *follow, error
+        referrer: 'no-referrer', // no-referrer, *client
+        body: JSON.stringify(order), // body data type must match "Content-Type" header
+      })
+    } catch (err) {
+      console.log(err)
+    }
+  }
+
+  async function requestOrders(): Promise<void> {
+    try {
+      // enable metamask
+      const accounts = await window.ethereum.enable()
+      setAccount(accounts[0]);
+      console.log(account);
+      // sign order
+      let signature = await handleSignature(accounts[0]);
+
+      let res1 = await fetch(`https://api.radarrelay.com/v2/markets/ZRX-WETH/fills`);
+      let json = await res1.json()
+      let liquidity = json.filter( function(item: Item){return (item.type=="SELL");} );
+      console.log(liquidity);
+
+      let remaining = amount;
+      let cycle = 0
+
+      while (remaining > 0) {
+        let available = liquidity[cycle].filledBaseTokenAmount
+        if (available < remaining) {
+          pushOrder(available, signature);
+          remaining = remaining - available;
+        } else {
+          pushOrder(remaining, signature);
+          remaining = 0;
+          console.log('done')
+        }
+        cycle++;
+      }
+
+      // create order
+      let order = {
+          exchangeAddress: ZRXmarket,
+          expirationTimeSeconds: 1527115521,
+          senderAddress: account,
+          makerFee: 0,
+          makerAddress: fulcrumAddress,
+          makerAssetAmount: makerBalance,
+          takerFee: 0,
+          takerAddress: account,
+          takerAssetAmount: takerBalance,
+          salt: Date.now(),
+          feeRecipientAddress: fulcrumAddress,
+          signature: signature
+      };
+
       let res = await fetch(`https://api.radarrelay.com/v2/orders`, {
         method: 'POST', // *GET, POST, PUT, DELETE, etc.
         mode: 'cors', // no-cors, cors, *same-origin
@@ -337,16 +205,9 @@ const App: React.FC = () => {
   return (
     <div className="App">
       <header className="App-header">
-        <button onClick={handleEnableWeb3}>Trade</button>
-        {web3enabled && (
-          <form onSubmit={handleSubmit}>
-            <label>
-              0x amount:
-              <input type="number" value={amount} onChange={e => setAmount(parseFloat(e.target.value))} />
-            </label>
-            <input type="submit" value="Buy" />
-          </form>
-        )}
+        0x amount:
+        <input type="number" value={amount} onChange={e => setAmount(parseFloat(e.target.value))} />
+        <button onClick={handleSubmit}>Buy</button>
       </header>
     </div>
   );

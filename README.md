@@ -66,3 +66,13 @@ Account creating an order.
 ### Taker
 
 Account filling an order.
+
+## Getting Started
+
+This app requires metamask. ZRX testnet tokens can be generated using ETH testnet tokens.
+
+1. Set your Metmask network to Kovan.
+2. Generate testnet 0x from testnet ETH
+- https://0x.org/portal/generate
+
+
