@@ -34,45 +34,25 @@ struct Order0x {
 
 Reference: https://github.com/bZxNetwork/bZx-monorepo/blob/development/packages/contracts/contracts/zeroex/BZxTo0xV2.sol
 
-## Trading Concepts
 
-Fulcrum is a platform that allows short and long selling.
-
-### Short Selling
-
-A short sell predicts a market will go down, instead of up.
-
-1. Short sellers buy by borrowing assets and selling at market price
-2. Once the price drops, the short seller buys the asset again, and returns it to the lender
-
-For example, selling $10,000 of borrowed asset for $10/fungible item. If cost goes down to $7/fungible item, the short seller profits $3000.
-
-### Long Selling
-
-A trader buys shares hoping to sell at a higher price.
-
-### Margin Trade
-
-Margin is borrowed money used to purchase an asset.
-
-Margin trading refers to using borrowed funds to trade a financial asset, which forms collateral for the loan from the lender.
-
-The collateralized loan comes with a periodic interest rate that the investor must repay to the lender.
-
-### Maker
-
-Account creating an order.
-
-### Taker
-
-Account filling an order.
-
-## Getting Started
+## Running Frontend Client
 
 This app requires metamask. ZRX testnet tokens can be generated using ETH testnet tokens.
 
-1. Set your Metmask network to Kovan.
-2. Generate testnet 0x from testnet ETH
-- https://0x.org/portal/generate
+1. Set Metamask network to a testnetwork (here Kovan will be used)
+2. Acquire testnet tokens (One Kovan faucet found at https://faucet.kovan.network/)
 
 
+Install dependencies:
+
+```
+cd client
+yarn || npm install
+```
+
+Run Client
+```
+yarn start || npm run yarn
+```
+
+Client should ask for Metamask authorization upon an 0x amount is submitted. Client sends amount to Radar Relay, trading available liquidity in multiple orders if required.
