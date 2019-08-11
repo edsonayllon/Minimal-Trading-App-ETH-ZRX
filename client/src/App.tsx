@@ -1,17 +1,10 @@
 import React, { useEffect, useState, MouseEvent } from 'react';
-import logo from './logo.svg';
 import './App.css';
 import {
-    assetDataUtils,
-    BigNumber,
-    ContractWrappers,
-    generatePseudoRandomSalt,
-    Order,
     orderHashUtils,
     signatureUtils,
     Web3ProviderEngine
 } from '0x.js';
-
 
 // Data used from api()
 /*
@@ -87,7 +80,7 @@ const App: React.FC = () => {
     try {
       let res = await fetch(`https://api.radarrelay.com/v2/markets/ZRX-WETH/fills`);
       let json = await res.json()
-      let sell = json.filter( function(item: Item){return (item.type=="SELL");} );
+      let sell = json.filter( function(item: Item){return (item.type==="SELL");} );
       console.log(json);
       console.log(sell)
     } catch (err) {
@@ -159,7 +152,7 @@ const App: React.FC = () => {
       let json = await res1.json()
 
       // sort only available sell orders to buy
-      let liquidity = json.filter( function(item: Item){return (item.type=="SELL");} );
+      let liquidity = json.filter( function(item: Item){return (item.type==="SELL");} );
       console.log(liquidity);
 
       // set initial remaining value as user input order amount, and initiate current sell order index
@@ -171,19 +164,15 @@ const App: React.FC = () => {
         let available = liquidity[cycle].filledBaseTokenAmount;
 
 
-
-
         if (available === null) {
           // if we run out of liquidity, make Fulcrum the taker
           pushOrder(remaining, accounts[0], fulcrumAddress);
-        };
+        }
 
         if (available < remaining) {
           // if amount is greater than current existing sell order
 
-          pushOrder(available,
-          accounts[0],
-          liquidity[cycle].makerAddress)
+          pushOrder(available, accounts[0], liquidity[cycle].makerAddress)
 
           // decrease remaining balance by current sell order amount
           remaining = remaining - available;
@@ -221,3 +210,4 @@ const App: React.FC = () => {
 }
 
 export default App;
+
