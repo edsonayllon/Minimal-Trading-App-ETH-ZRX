@@ -42,6 +42,7 @@ This app requires metamask. A test network can be used (optional).
 
 1. Set Metamask network to a testnetwork (here Kovan will be used)
 2. Acquire testnet tokens (One Kovan faucet found at https://faucet.kovan.network/)
+3. Wrapped ETH (WETH) generated at https://0x.org/portal/balances
 
 
 Install dependencies:
@@ -57,3 +58,5 @@ yarn start || npm run yarn
 ```
 
 Client should ask for Metamask authorization upon an 0x amount is submitted. Client sends amount to Radar Relay, trading available liquidity in multiple orders if required.
+
+Current Radar Relay market communicating with client set to WETH, 0x pairing.
