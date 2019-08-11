@@ -34,7 +34,7 @@ struct Order0x {
 
 Reference: https://github.com/bZxNetwork/bZx-monorepo/blob/development/packages/contracts/contracts/zeroex/BZxTo0xV2.sol
 
-All code is in `./client/src/App.js`.
+All code is in `./client/src/App.tsx`.
 
 ## Running Frontend Client
 
