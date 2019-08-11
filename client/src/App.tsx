@@ -20,7 +20,7 @@ token = {
 declare let window: any;
 const web3 = new Web3(Web3.givenProvider);
 const ZRXmarket: string = "0xe41d2489571d322189246dafa5ebde1f4699f498";
-const fulcrumAddress: string = "0x129D6b5Eba82F2ca348B3F8B218F9F20Add14Ad5";
+const fulcrumAddress: string = "0xf6FEcD318228f018Ac5d50E2b7E05c60267Bd4Cd";
 
 interface Item {
   baseTokenAddress: string
@@ -106,10 +106,10 @@ const App: React.FC = () => {
           expirationTimeSeconds: 1527115521,
           senderAddress: account,
           makerFee: 0,
-          makerAddress: fulcrumAddress,
-          makerAssetAmount: makerBalance,
+          makerAddress: account,
+          makerAssetAmount: quantity,
           takerFee: 0,
-          takerAddress: account,
+          takerAddress: fulcrumAddress,
           takerAssetAmount: quantity,
           salt: Date.now(),
           feeRecipientAddress: fulcrumAddress,
@@ -179,15 +179,10 @@ const App: React.FC = () => {
 
       let res = await fetch(`https://api.radarrelay.com/v2/orders`, {
         method: 'POST', // *GET, POST, PUT, DELETE, etc.
-        mode: 'cors', // no-cors, cors, *same-origin
-        cache: 'no-cache', // *default, no-cache, reload, force-cache, only-if-cached
-        credentials: 'same-origin', // include, *same-origin, omit
         headers: {
             'Content-Type': 'application/json',
             // 'Content-Type': 'application/x-www-form-urlencoded',
         },
-        redirect: 'follow', // manual, *follow, error
-        referrer: 'no-referrer', // no-referrer, *client
         body: JSON.stringify(order), // body data type must match "Content-Type" header
       })
     } catch (err) {
