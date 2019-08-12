@@ -63,6 +63,10 @@ Current Radar Relay market communicating with client set to WETH, 0x pairing.
 
 ## Contact the Developer
 
+Follow Edson on [Medium](https://medium.com/@edsonayllon), [Twitter](https://twitter.com/relativeread), and [Twitch](twitch.tv/edson6).
+
 Business Enquiries are best done through [LinkedIn](https://www.linkedin.com/in/edson-ayllon/): [@edson-ayllon](https://www.linkedin.com/in/edson-ayllon/).
 
-Follow Edson on [Medium](https://medium.com/@edsonayllon), [Twitter](https://twitter.com/relativeread), and [Twitch](twitch.tv/edson6).
+Developer questions on [Gitter](https://gitter.im): [@edsonayllon](https://github.com/edsonayllon)
+
+
