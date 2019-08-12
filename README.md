@@ -60,3 +60,9 @@ yarn start || npm run yarn
 Client should ask for Metamask authorization upon an 0x amount is submitted. Client sends amount to Radar Relay, trading available liquidity in multiple orders if required.
 
 Current Radar Relay market communicating with client set to WETH, 0x pairing.
+
+## Contact the Developer
+
+Business Enquiries are best done through [LinkedIn](https://www.linkedin.com/in/edson-ayllon/): [@edson-ayllon](https://www.linkedin.com/in/edson-ayllon/).
+
+Follow Edson on [Medium](https://medium.com/@edsonayllon), [Twitter](https://twitter.com/relativeread), and [Twitch](twitch.tv/edson6).
