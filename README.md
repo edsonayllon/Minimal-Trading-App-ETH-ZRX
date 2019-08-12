@@ -67,6 +67,6 @@ Follow Edson on [Medium](https://medium.com/@edsonayllon), [Twitter](https://twi
 
 Business Enquiries are best done through [LinkedIn](https://www.linkedin.com/in/edson-ayllon/): [@edson-ayllon](https://www.linkedin.com/in/edson-ayllon/).
 
-Developer questions on [Gitter](https://gitter.im): [@edsonayllon](https://github.com/edsonayllon)
+Developer questions on [Gitter](https://gitter.im): [@edsonayllon](https://github.com/edsonayllon).
 
 
