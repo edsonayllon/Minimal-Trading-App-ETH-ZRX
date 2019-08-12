@@ -42,7 +42,7 @@ This app requires metamask. A test network can be used (optional).
 
 1. Set Metamask network to a testnetwork (here Kovan will be used)
 2. Acquire testnet tokens (One Kovan faucet found at https://faucet.kovan.network/)
-3. Wrapped ETH (WETH) generated at https://0x.org/portal/balances
+3. Wrapped ETH (WETH) generated at https://0x.org/portal/account
 
 
 Install dependencies:
