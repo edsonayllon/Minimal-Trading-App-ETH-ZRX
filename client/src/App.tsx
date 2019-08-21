@@ -3,8 +3,13 @@ import './App.css';
 import {
     orderHashUtils,
     signatureUtils,
-    Web3ProviderEngine
+    Web3ProviderEngine,
+    BigNumber,
+    assetDataUtils,
+    ContractWrappers,
 } from '0x.js';
+import { Web3Wrapper } from '@0x/web3-wrapper';
+import Web3 from 'web3';
 
 // Data used from api()
 /*
@@ -50,7 +55,6 @@ declare let window: any;
 // varaibles used in pushOrder()
 const ZRXmarket: string = "0xe41d2489571d322189246dafa5ebde1f4699f498";
 const feeAddress: string = "0xa258b39954cef5cb142fd567a46cddb31a670124".toLowerCase();
-const pe = new Web3ProviderEngine();
 const fulcrumAddress: string = "0xf6FEcD318228f018Ac5d50E2b7E05c60267Bd4Cd".toLowerCase(); // replace with Fulcrum address
 
 interface Item {
@@ -70,6 +74,15 @@ interface Item {
   transactionHash: string
   type: string
 }
+
+
+
+
+const KOVAN_NETWORK_ID = 42;
+const providerEngine = new Web3ProviderEngine(); // if none provided, should look for injected provider via browser
+providerEngine.start();
+
+const contractWrappers = new ContractWrappers(providerEngine, { networkId: KOVAN_NETWORK_ID });
 
 const App: React.FC = () => {
   // hook to read user input 0x amount wanted
@@ -91,12 +104,19 @@ const App: React.FC = () => {
   // for typescript syntax for handling events
   function handleSubmit(e: MouseEvent<HTMLButtonElement>) {
     e.preventDefault();
-    return requestOrders();
+    return buyZrx();
   }
 
   // POSTs individual orders
-  async function pushOrder(quantity: number, maker: string, taker: string): Promise<void> {
+  async function pushOrder(makerBuyingQuantity: number | string, makerSellingQuanity: number | string, maker: string, taker: string, makerToken: string, takerToken: string): Promise<void> {
     try {
+      // format buying and selling amounts
+      // All token amounts are sent in amounts of the smallest level of precision (base units).
+      // (e.g if a token has 18 decimal places, selling 1 token would show up as selling '1000000000000000000' units by this API).
+      let DECIMALS = 18;
+      const makerAssetAmount = Web3Wrapper.toBaseUnitAmount(new BigNumber(makerSellingQuanity), DECIMALS); // amount of token we sell
+      const takerAssetAmount = Web3Wrapper.toBaseUnitAmount(new BigNumber(makerBuyingQuantity), DECIMALS); // amount of token we buy
+
       // ready order, unsigned. Set type to any to bypass bug where getOrderHashHex() wants a full signedOrder object
       let order: any = {
           exchangeAddress: ZRXmarket,
@@ -104,14 +124,14 @@ const App: React.FC = () => {
           senderAddress: maker, // addresses must be sent in lowercase
           makerFee: 0,
           makerAddress: maker,
-          makerAssetAmount: quantity*10e18, // All token amounts are sent in amounts of the smallest level of precision (base units). (e.g if a token has 18 decimal places, selling 1 token would show up as selling '1000000000000000000' units by this API).
+          makerAssetAmount: makerAssetAmount,
           takerFee: 0,
           takerAddress: taker,
-          takerAssetAmount: quantity*10e18,
+          takerAssetAmount: takerAssetAmount,
           salt: Date.now(),
           feeRecipientAddress: feeAddress, // fee address is address of relayer
-          makerAssetData: '0xf47261b00000000000000000000000001dc4c1cefef38a777b15aa20260a54e584b16c48',
-          takerAssetData: '0xf47261b00000000000000000000000001dc4c1cefef38a777b15aa20260a54e584b16c48',
+          makerAssetData: makerToken, // The token address the Maker is offering
+          takerAssetData: takerToken, // The token address the Maker is requesting from the Taker.
       };
 
       // use orderHashUtils to ready for a signature, where the order object becomes complete with the signature
@@ -119,7 +139,7 @@ const App: React.FC = () => {
 
       // signature is required to confirm the sender owns the private key to the maker public address
       // API throws error if incorrect signature is provided
-      const signature = await signatureUtils.ecSignHashAsync(pe, orderHashHex, maker);
+      const signature = await signatureUtils.ecSignHashAsync(providerEngine, orderHashHex, maker);
 
       // append signature to order object
       const signedOrder = { ...order, signature };
@@ -142,10 +162,11 @@ const App: React.FC = () => {
   }
 
   // parent Order action
-  async function requestOrders(): Promise<void> {
+  async function buyZrx(): Promise<void> {
     try {
       // enable metamask
-      const accounts = await window.ethereum.enable()
+      const accounts = await window.ethereum.enable();
+      let maker = accounts[0];
 
       // GET's liquidity (but and sell orders)
       let res1 = await fetch(`https://api.radarrelay.com/v2/markets/ZRX-WETH/fills`);
@@ -157,7 +178,28 @@ const App: React.FC = () => {
 
       // set initial remaining value as user input order amount, and initiate current sell order index
       let remaining = amount;
-      let cycle = 0
+      let cycle = 0;
+
+      let wethTokenAddr = `0xc02aaa39b223fe8d0a0e5c4f27ead9083c756cc2`;
+      let zrxTokenAddr = `0xe41d2489571d322189246dafa5ebde1f4699f498`;
+
+      const makerAssetData = assetDataUtils.encodeERC20AssetData(wethTokenAddr); // maker is selling WETH for ZRX
+      const takerAssetData = assetDataUtils.encodeERC20AssetData(zrxTokenAddr); // taker is selling ZRX for WETH
+
+      const makerZRXApprovalTxHash = await contractWrappers.erc20Token.setUnlimitedProxyAllowanceAsync(
+        zrxTokenAddr,
+        maker,
+      );
+      const takerWETHApprovalTxHash = await contractWrappers.erc20Token.setUnlimitedProxyAllowanceAsync(
+              wethTokenAddr,
+              taker,
+      );
+      const takerWETHDepositTxHash = await contractWrappers.etherToken.depositAsync(
+              wethTokenAddr,
+              takerAssetAmount,
+              taker,
+      );
+
 
       while (remaining > 0) {
         // get sell amount for cheapest order
@@ -166,19 +208,19 @@ const App: React.FC = () => {
 
         if (available === null) {
           // if we run out of liquidity, make Fulcrum the taker
-          pushOrder(remaining, accounts[0], fulcrumAddress);
+          pushOrder(remaining, liquidity[cycle].filledQuoteTokenAmount, accounts[0], fulcrumAddress, makerAssetData, takerAssetData);
         }
 
         if (available < remaining) {
           // if amount is greater than current existing sell order
           setTimeout(()=>{}, 501); // each browser can only send 2 requests per second in Radar Relay API
-          pushOrder(available, accounts[0], liquidity[cycle].makerAddress)
+          pushOrder(available, liquidity[cycle].filledQuoteTokenAmount, accounts[0], liquidity[cycle].makerAddress, makerAssetData, takerAssetData)
 
           // decrease remaining balance by current sell order amount
           remaining = remaining - available;
         } else {
           // if buy order will be filled with this current sell order
-          pushOrder(remaining, accounts[0], liquidity[cycle].makerAddress);
+          pushOrder(remaining, liquidity[cycle].filledQuoteTokenAmount, accounts[0], liquidity[cycle].makerAddress, makerAssetData, takerAssetData);
 
           // set remaining balance to 0 to exit loop
           remaining = 0;
