@@ -7,6 +7,7 @@ import {
     BigNumber,
     assetDataUtils,
     ContractWrappers,
+    generatePseudoRandomSalt
 } from '0x.js';
 import { Web3Wrapper } from '@0x/web3-wrapper';
 import Web3 from 'web3';
@@ -180,7 +181,7 @@ const App: React.FC = () => {
           takerFee: 0,
           takerAddress: taker,
           takerAssetAmount: takerAssetAmount,
-          salt: Date.now(),
+          salt: generatePseudoRandomSalt(),
           feeRecipientAddress: feeAddr, // fee address is address of relayer
           makerAssetData: makerAssetData, // The token address the Maker is offering
           takerAssetData: takerAssetData, // The token address the Maker is requesting from the Taker.
