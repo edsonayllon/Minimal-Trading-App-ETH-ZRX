@@ -49,6 +49,9 @@ https://api.radarrelay.com/v2/markets/ZRX-WETH/fills
 }
 */
 
+
+// See https://github.com/0xProject/0x-starter-project/blob/master/src/scenarios/fill_order_erc20.ts for reference
+
 // read window.ethereum in Typescript & start web3 instance
 declare let window: any;
 
@@ -74,9 +77,6 @@ interface Item {
   transactionHash: string
   type: string
 }
-
-
-
 
 const KOVAN_NETWORK_ID = 42;
 const providerEngine = new Web3ProviderEngine(); // if none provided, should look for injected provider via browser
@@ -108,7 +108,17 @@ const App: React.FC = () => {
   }
 
   // POSTs individual orders
-  async function pushOrder(makerBuyingQuantity: number | string, makerSellingQuanity: number | string, maker: string, taker: string, makerToken: string, takerToken: string): Promise<void> {
+  async function pushOrder(
+    makerBuyingQuantity: number | string,
+    makerSellingQuanity: number | string,
+    maker: string,
+    taker: string,
+    makerAssetData: string,
+    takerAssetData: string,
+    makerToken: string,
+    takerToken: string,
+    type: string
+  ): Promise<void> {
     try {
       // format buying and selling amounts
       // All token amounts are sent in amounts of the smallest level of precision (base units).
@@ -116,6 +126,41 @@ const App: React.FC = () => {
       let DECIMALS = 18;
       const makerAssetAmount = Web3Wrapper.toBaseUnitAmount(new BigNumber(makerSellingQuanity), DECIMALS); // amount of token we sell
       const takerAssetAmount = Web3Wrapper.toBaseUnitAmount(new BigNumber(makerBuyingQuantity), DECIMALS); // amount of token we buy
+
+      let wethTokenAddr = `0xc02aaa39b223fe8d0a0e5c4f27ead9083c756cc2`;
+
+      // Allow the 0x ERC20 Proxy to move ZRX on behalf of makerAccount
+      const makerApprovalTxHash = await contractWrappers.erc20Token.setUnlimitedProxyAllowanceAsync(
+          makerToken,
+          maker,
+      );
+
+      // Allow the 0x ERC20 Proxy to move WETH on behalf of takerAccount
+      const takerApprovalTxHash = await contractWrappers.erc20Token.setUnlimitedProxyAllowanceAsync(
+          takerToken,
+          taker,
+      );
+
+      var takerWETHDepositTxHash;
+
+      switch(type) {
+        case "BUY":
+          takerWETHDepositTxHash  = await contractWrappers.etherToken.depositAsync(
+            wethTokenAddr,
+            makerAssetAmount,
+            maker,
+          );
+          break;
+        case "SELL":
+          takerWETHDepositTxHash = await contractWrappers.etherToken.depositAsync(
+            wethTokenAddr,
+            takerAssetAmount,
+            taker,
+          );
+          break;
+        default:
+      }
+
 
       // ready order, unsigned. Set type to any to bypass bug where getOrderHashHex() wants a full signedOrder object
       let order: any = {
@@ -130,8 +175,8 @@ const App: React.FC = () => {
           takerAssetAmount: takerAssetAmount,
           salt: Date.now(),
           feeRecipientAddress: feeAddress, // fee address is address of relayer
-          makerAssetData: makerToken, // The token address the Maker is offering
-          takerAssetData: takerToken, // The token address the Maker is requesting from the Taker.
+          makerAssetData: makerAssetData, // The token address the Maker is offering
+          takerAssetData: takerAssetData, // The token address the Maker is requesting from the Taker.
       };
 
       // use orderHashUtils to ready for a signature, where the order object becomes complete with the signature
@@ -183,44 +228,31 @@ const App: React.FC = () => {
       let wethTokenAddr = `0xc02aaa39b223fe8d0a0e5c4f27ead9083c756cc2`;
       let zrxTokenAddr = `0xe41d2489571d322189246dafa5ebde1f4699f498`;
 
-      const makerAssetData = assetDataUtils.encodeERC20AssetData(wethTokenAddr); // maker is selling WETH for ZRX
-      const takerAssetData = assetDataUtils.encodeERC20AssetData(zrxTokenAddr); // taker is selling ZRX for WETH
+      let makerToken = wethTokenAddr; // maker is selling WETH for ZRX
+      let takerToken = zrxTokenAddr; // taker is selling ZRX for WETH
 
-      const makerZRXApprovalTxHash = await contractWrappers.erc20Token.setUnlimitedProxyAllowanceAsync(
-        zrxTokenAddr,
-        maker,
-      );
-      const takerWETHApprovalTxHash = await contractWrappers.erc20Token.setUnlimitedProxyAllowanceAsync(
-              wethTokenAddr,
-              taker,
-      );
-      const takerWETHDepositTxHash = await contractWrappers.etherToken.depositAsync(
-              wethTokenAddr,
-              takerAssetAmount,
-              taker,
-      );
-
+      const makerAssetData = assetDataUtils.encodeERC20AssetData(makerToken);
+      const takerAssetData = assetDataUtils.encodeERC20AssetData(takerToken);
 
       while (remaining > 0) {
         // get sell amount for cheapest order
         let available = liquidity[cycle].filledBaseTokenAmount;
 
-
         if (available === null) {
           // if we run out of liquidity, make Fulcrum the taker
-          pushOrder(remaining, liquidity[cycle].filledQuoteTokenAmount, accounts[0], fulcrumAddress, makerAssetData, takerAssetData);
+          pushOrder(remaining, liquidity[cycle].filledQuoteTokenAmount, accounts[0], fulcrumAddress, makerAssetData, takerAssetData, makerToken, takerToken, "BUY");
         }
 
         if (available < remaining) {
           // if amount is greater than current existing sell order
           setTimeout(()=>{}, 501); // each browser can only send 2 requests per second in Radar Relay API
-          pushOrder(available, liquidity[cycle].filledQuoteTokenAmount, accounts[0], liquidity[cycle].makerAddress, makerAssetData, takerAssetData)
+          pushOrder(available, liquidity[cycle].filledQuoteTokenAmount, accounts[0], liquidity[cycle].makerAddress, makerAssetData, takerAssetData, makerToken, takerToken, "BUY")
 
           // decrease remaining balance by current sell order amount
           remaining = remaining - available;
         } else {
           // if buy order will be filled with this current sell order
-          pushOrder(remaining, liquidity[cycle].filledQuoteTokenAmount, accounts[0], liquidity[cycle].makerAddress, makerAssetData, takerAssetData);
+          pushOrder(remaining, liquidity[cycle].filledQuoteTokenAmount, accounts[0], liquidity[cycle].makerAddress, makerAssetData, takerAssetData, makerToken, takerToken, "BUY");
 
           // set remaining balance to 0 to exit loop
           remaining = 0;
