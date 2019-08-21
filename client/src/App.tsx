@@ -56,11 +56,9 @@ https://api.radarrelay.com/v2/markets/ZRX-WETH/fills
 declare let window: any;
 
 // varaibles used in pushOrder()
-const ZRXmarket: string = "0xe41d2489571d322189246dafa5ebde1f4699f498";
-const feeAddress: string = "0xa258b39954cef5cb142fd567a46cddb31a670124".toLowerCase();
 const fulcrumAddress: string = "0xf6FEcD318228f018Ac5d50E2b7E05c60267Bd4Cd".toLowerCase(); // replace with Fulcrum address
 
-interface Item {
+interface ZRXOrderItem {
   baseTokenAddress: string
   blockNumber: number
   feeRecipientAddress: string
@@ -93,7 +91,7 @@ const App: React.FC = () => {
     try {
       let res = await fetch(`https://api.radarrelay.com/v2/markets/ZRX-WETH/fills`);
       let json = await res.json()
-      let sell = json.filter( function(item: Item){return (item.type==="SELL");} );
+      let sell = json.filter( function(item: ZRXOrderItem){return (item.type==="SELL");} );
       console.log(json);
       console.log(sell)
     } catch (err) {
@@ -113,6 +111,7 @@ const App: React.FC = () => {
     makerSellingQuanity: number | string,
     maker: string,
     taker: string,
+    feeAddr: string,
     type: string
   ): Promise<void> {
     try {
@@ -172,7 +171,7 @@ const App: React.FC = () => {
 
       // ready order, unsigned. Set type to any to bypass bug where getOrderHashHex() wants a full signedOrder object
       let order: any = {
-          exchangeAddress: ZRXmarket,
+          exchangeAddress: zrxTokenAddr,
           expirationTimeSeconds: Math.trunc((Date.now() + 1000*60*60*24*7)/1000), // timestamp for expiration in seconds, here set to 1 week
           senderAddress: maker, // addresses must be sent in lowercase
           makerFee: 0,
@@ -182,7 +181,7 @@ const App: React.FC = () => {
           takerAddress: taker,
           takerAssetAmount: takerAssetAmount,
           salt: Date.now(),
-          feeRecipientAddress: feeAddress, // fee address is address of relayer
+          feeRecipientAddress: feeAddr, // fee address is address of relayer
           makerAssetData: makerAssetData, // The token address the Maker is offering
           takerAssetData: takerAssetData, // The token address the Maker is requesting from the Taker.
       };
@@ -225,7 +224,7 @@ const App: React.FC = () => {
       let json = await res1.json()
 
       // sort only available sell orders to buy
-      let liquidity = json.filter( function(item: Item){return (item.type==="SELL");} );
+      let liquidity = json.filter( function(item: ZRXOrderItem){return (item.type==="SELL");} );
       console.log(liquidity);
 
       // set initial remaining value as user input order amount, and initiate current sell order index
@@ -238,19 +237,19 @@ const App: React.FC = () => {
 
         if (available === null) {
           // if we run out of liquidity, make Fulcrum the taker
-          pushOrder(remaining, liquidity[cycle].filledQuoteTokenAmount, accounts[0], fulcrumAddress,  "BUY");
+          pushOrder(remaining, liquidity[cycle].filledQuoteTokenAmount, accounts[0], fulcrumAddress, liquidity[cycle].feeRecipientAddress, "BUY");
         }
 
         if (available < remaining) {
           // if amount is greater than current existing sell order
           setTimeout(()=>{}, 501); // each browser can only send 2 requests per second in Radar Relay API
-          pushOrder(available, liquidity[cycle].filledQuoteTokenAmount, accounts[0], liquidity[cycle].makerAddress,  "BUY")
+          pushOrder(available, liquidity[cycle].filledQuoteTokenAmount, accounts[0], liquidity[cycle].makerAddress, liquidity[cycle].feeRecipientAddress,  "BUY")
 
           // decrease remaining balance by current sell order amount
           remaining = remaining - available;
         } else {
           // if buy order will be filled with this current sell order
-          pushOrder(remaining, liquidity[cycle].filledQuoteTokenAmount, accounts[0], liquidity[cycle].makerAddress,  "BUY");
+          pushOrder(remaining, liquidity[cycle].filledQuoteTokenAmount, accounts[0], liquidity[cycle].makerAddress, liquidity[cycle].feeRecipientAddress, "BUY");
 
           // set remaining balance to 0 to exit loop
           remaining = 0;
