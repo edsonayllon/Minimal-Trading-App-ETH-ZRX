@@ -137,6 +137,7 @@ const App: React.FC = () => {
         makerToken = wethTokenAddr; // maker is selling WETH for ZRX
         takerToken = zrxTokenAddr; // taker is selling ZRX for WETH
 
+        // Convert ETH into WETH for maker
         takerWETHDepositTxHash  = await contractWrappers.etherToken.depositAsync(
           wethTokenAddr,
           makerAssetAmount,
@@ -146,13 +147,15 @@ const App: React.FC = () => {
         makerToken = zrxTokenAddr; // maker is selling ZRX for WETH
         takerToken = wethTokenAddr; // taker is selling WETH for ZRX
 
+        // Convert ETH into WETH for taker
         takerWETHDepositTxHash = await contractWrappers.etherToken.depositAsync(
           wethTokenAddr,
           takerAssetAmount,
           taker,
         );
       }
-            // Allow the 0x ERC20 Proxy to move ZRX on behalf of makerAccount
+
+      // Allow the 0x ERC20 Proxy to move ZRX on behalf of makerAccount
       const makerApprovalTxHash = await contractWrappers.erc20Token.setUnlimitedProxyAllowanceAsync(
           makerToken,
           maker,
@@ -196,14 +199,13 @@ const App: React.FC = () => {
 
       // Submit order
       let res = await fetch(`https://api.radarrelay.com/v2/orders`, {
-        method: 'POST', // *GET, POST, PUT, DELETE, etc.
+        method: 'POST',
         headers: {
             'Content-Type': 'application/json',
-            // 'Content-Type': 'application/x-www-form-urlencoded',
         },
-        redirect: 'follow', // manual, *follow, error
-        referrer: 'no-referrer', // no-referrer, *client
-        body: JSON.stringify(signedOrder), // body data type must match "Content-Type" header
+        redirect: 'follow',
+        referrer: 'no-referrer',
+        body: JSON.stringify(signedOrder),
       });
       console.log(await res.json)
     } catch (err) {
