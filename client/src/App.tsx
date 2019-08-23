@@ -4,59 +4,42 @@ import {
     orderHashUtils,
     signatureUtils,
     Web3ProviderEngine,
-    BigNumber,
     assetDataUtils,
     ContractWrappers,
-    generatePseudoRandomSalt
+    Order,
+    BigNumber,
+    RPCSubprovider,
 } from '0x.js';
+import { getContractAddressesForNetworkOrThrow } from '@0x/contract-addresses';
 import { Web3Wrapper } from '@0x/web3-wrapper';
-import Web3 from 'web3';
+import { SignerSubprovider, MetamaskSubprovider } from '@0x/subproviders';
+const Web3 = require('web3');
+BigNumber.set({ DECIMAL_PLACES: 14 })
 
-// Data used from api()
-/*
-exchange address
-from https://developers.radarrelay.com/api/feed-api/tokens
-token = {
-  active: 1
-  address: "0xe41d2489571d322189246dafa5ebde1f4699f498"
-  createdDate: "2018-01-26 01:18:19"
-  decimals: 18
-  name: "0x Protocol Token"
-  quote: 0
-  symbol: "ZRX"
-  zeroex_official: 1
-}
-*/
-
-/*
-fee recipients
-https://api.radarrelay.com/v2/markets/ZRX-WETH/fills
-{
-  baseTokenAddress: "0xe41d2489571d322189246dafa5ebde1f4699f498"
-  blockNumber: 8320353
-  feeRecipientAddress: "0xa258b39954cef5cb142fd567a46cddb31a670124"
-  filledBaseTokenAmount: "500"
-  filledQuoteTokenAmount: "0.457"
-  makerAddress: "0x395d48020ef5e29168706e16258db6c6c4d7d317"
-  makerFeePaid: "0"
-  orderHash: "0x14da0f76eecf0f97c3d7e422ba948bb3fc5db9c0b91a8b1af0573f63ea79e0f0"
-  outlier: false
-  quoteTokenAddress: "0xc02aaa39b223fe8d0a0e5c4f27ead9083c756cc2"
-  takerAddress: "0x85c5c26dc2af5546341fc1988b9d178148b4838b"
-  takerFeePaid: "0"
-  timestamp: 1565406696
-  transactionHash: "0xb2165429622103311d868c8d8f3936d833825799e80faaeaa7e6a6f9dd9f087e"
-  type: "BUY"
-}
-*/
-
-
-// See https://github.com/0xProject/0x-starter-project/blob/master/src/scenarios/fill_order_erc20.ts for reference
-
-// read window.ethereum in Typescript & start web3 instance
 declare let window: any;
+const web3 = new Web3(Web3.givenProvider)
+const signer = (web3.currentProvider as any).isMetaMask
+                ? new MetamaskSubprovider(web3.currentProvider)
+                : new SignerSubprovider(web3.currentProvider);
 
-// varaibles used in pushOrder()
+// Provider documentation found at https://0x.org/wiki#Web3-Provider-Examples
+const providerEngine = new Web3ProviderEngine(); // if none provided, should look for injected provider via browser
+providerEngine.addProvider(signer); //replace with Fulcrum's user chosen provider at a later point
+
+// https://mainnet.infura.io/XyzEcUCJOQunP1PHWBJF
+providerEngine.addProvider(new RPCSubprovider('https://mainnet.infura.io/XyzEcUCJOQunP1PHWBJF'));
+providerEngine.start();
+
+const NETWORK_ID = process.env.REACT_APP_ETH_NETWORK === "mainnet" ? 1 :
+                   process.env.REACT_APP_ETH_NETWORK === "kovan" ? 42 : 3 // is network mainnet, kovan or ropsten
+
+const contractAddresses = getContractAddressesForNetworkOrThrow(NETWORK_ID);
+
+const contractWrappers = new ContractWrappers(providerEngine, { networkId: NETWORK_ID, gasPrice: new BigNumber(20000000000) });
+
+const web3Wrapper = new Web3Wrapper(providerEngine);
+
+// addresses used in orders must be lowercase
 const fulcrumAddress: string = "0xf6FEcD318228f018Ac5d50E2b7E05c60267Bd4Cd".toLowerCase(); // replace with Fulcrum address
 
 interface ZRXOrderItem {
@@ -77,15 +60,11 @@ interface ZRXOrderItem {
   type: string
 }
 
-const KOVAN_NETWORK_ID = 42;
-const providerEngine = new Web3ProviderEngine(); // if none provided, should look for injected provider via browser
-providerEngine.start();
-
-const contractWrappers = new ContractWrappers(providerEngine, { networkId: KOVAN_NETWORK_ID });
-
 const App: React.FC = () => {
   // hook to read user input 0x amount wanted
   const [amount, setAmount] = useState(0);
+  const [asset, setAsset] = useState('ZRX');
+  const [collateral, setCollateral] = useState('ETH');
 
   // used to fetch required information used in Order
   async function api(): Promise<void> {
@@ -103,57 +82,40 @@ const App: React.FC = () => {
   // for typescript syntax for handling events
   function handleSubmit(e: MouseEvent<HTMLButtonElement>) {
     e.preventDefault();
-    return buyZrx();
+    return radarZrxSubmit();
   }
 
   // POSTs individual orders
-  async function pushOrder(
-    makerBuyingQuantity: number | string,
+  const pushRadarRelayOrder = async (
     makerSellingQuanity: number | string,
+    makerBuyingQuantity: number | string,
     maker: string,
     taker: string,
     feeAddr: string,
     type: string
-  ): Promise<void> {
+  ): Promise<void> => {
     try {
       // format buying and selling amounts
       // All token amounts are sent in amounts of the smallest level of precision (base units).
       // (e.g if a token has 18 decimal places, selling 1 token would show up as selling '1000000000000000000' units by this API).
-      let DECIMALS = 18;
-      const makerAssetAmount = Web3Wrapper.toBaseUnitAmount(new BigNumber(makerSellingQuanity), DECIMALS); // amount of token we sell
-      const takerAssetAmount = Web3Wrapper.toBaseUnitAmount(new BigNumber(makerBuyingQuantity), DECIMALS); // amount of token we buy
 
+      let ZERO = new BigNumber(0);
+      let DECIMALS = 18;
+      let NULL_ADDRESS = '0x0000000000000000000000000000000000000000'.toLowerCase();
+      let makerAssetAmount = Web3Wrapper.toBaseUnitAmount(new BigNumber(makerSellingQuanity), DECIMALS); // amount of token we sell
+      let takerAssetAmount = Web3Wrapper.toBaseUnitAmount(new BigNumber(makerBuyingQuantity), DECIMALS); // amount of token we buy
 
       let wethTokenAddr = `0xc02aaa39b223fe8d0a0e5c4f27ead9083c756cc2`;
       let zrxTokenAddr = `0xe41d2489571d322189246dafa5ebde1f4699f498`;
 
       var takerWETHDepositTxHash;
-      var makerToken: string;
-      var takerToken: string;
-      var takerWETHDepositTxHash;
-
-
-      if (type === "BUY") {
-        makerToken = wethTokenAddr; // maker is selling WETH for ZRX
-        takerToken = zrxTokenAddr; // taker is selling ZRX for WETH
-
-        // Convert ETH into WETH for maker
-        takerWETHDepositTxHash  = await contractWrappers.etherToken.depositAsync(
-          wethTokenAddr,
-          makerAssetAmount,
-          maker,
-        );
-      } else {
-        makerToken = zrxTokenAddr; // maker is selling ZRX for WETH
-        takerToken = wethTokenAddr; // taker is selling WETH for ZRX
-
-        // Convert ETH into WETH for taker
-        takerWETHDepositTxHash = await contractWrappers.etherToken.depositAsync(
-          wethTokenAddr,
-          takerAssetAmount,
-          taker,
-        );
-      }
+      let makerToken = type === "BUY" ? wethTokenAddr : zrxTokenAddr;
+      let takerToken = type === "BUY" ? zrxTokenAddr : wethTokenAddr;
+      let takerWETHDepositTxHash = type === "BUY" ? await contractWrappers.etherToken.depositAsync(
+        wethTokenAddr,
+        makerAssetAmount,
+        maker,
+      ) : null;
 
       // Allow the 0x ERC20 Proxy to move ZRX on behalf of makerAccount
       const makerApprovalTxHash = await contractWrappers.erc20Token.setUnlimitedProxyAllowanceAsync(
@@ -161,27 +123,21 @@ const App: React.FC = () => {
           maker,
       );
 
-      // Allow the 0x ERC20 Proxy to move WETH on behalf of takerAccount
-      const takerApprovalTxHash = await contractWrappers.erc20Token.setUnlimitedProxyAllowanceAsync(
-          takerToken,
-          taker,
-      );
-
       const makerAssetData = assetDataUtils.encodeERC20AssetData(makerToken);
       const takerAssetData = assetDataUtils.encodeERC20AssetData(takerToken);
 
       // ready order, unsigned. Set type to any to bypass bug where getOrderHashHex() wants a full signedOrder object
-      let order: any = {
-          exchangeAddress: zrxTokenAddr,
-          expirationTimeSeconds: Math.trunc((Date.now() + 1000*60*60*24*7)/1000), // timestamp for expiration in seconds, here set to 1 week
-          senderAddress: maker, // addresses must be sent in lowercase
-          makerFee: 0,
+      let order: Order = {
+          exchangeAddress: contractAddresses.exchange,
+          expirationTimeSeconds: new BigNumber(Math.trunc((Date.now() + 1000*60*60*24*7)/1000)), // timestamp for expiration in seconds, here set to 1 week
+          senderAddress: NULL_ADDRESS, // addresses must be sent in lowercase
+          makerFee: ZERO,
           makerAddress: maker,
           makerAssetAmount: makerAssetAmount,
-          takerFee: 0,
-          takerAddress: taker,
+          takerFee: ZERO,
+          takerAddress: NULL_ADDRESS,
           takerAssetAmount: takerAssetAmount,
-          salt: generatePseudoRandomSalt(),
+          salt: new BigNumber(Date.now()),
           feeRecipientAddress: feeAddr, // fee address is address of relayer
           makerAssetData: makerAssetData, // The token address the Maker is offering
           takerAssetData: takerAssetData, // The token address the Maker is requesting from the Taker.
@@ -203,57 +159,94 @@ const App: React.FC = () => {
         headers: {
             'Content-Type': 'application/json',
         },
-        redirect: 'follow',
-        referrer: 'no-referrer',
         body: JSON.stringify(signedOrder),
       });
-      console.log(await res.json)
+      let json = await res.json
+      console.log(json);
+      console.log(await res.text())
     } catch (err) {
       console.log(err)
     }
   }
 
-  // parent Order action
-  async function buyZrx(): Promise<void> {
+  const radarZrxSubmit = async (): Promise<void> => {
     try {
-      // enable metamask
+      // is user buying ZRX with ETH or selling ZRX for ETH?
+      const zrxTradeType = asset === "ZRX" && collateral === "ETH" ? 'BUY' : 'SELL';
+      // are the takers selling ZRX or Buying ZRX?
+      const zrxTakerType = asset === "ZRX" && collateral === "ETH" ? 'SELL' : 'BUY';
+
+      // get user's public key, assumes metamask for now
       const accounts = await window.ethereum.enable();
       let maker = accounts[0];
 
-      // GET's liquidity (but and sell orders)
+      // GET's liquidity (buy and sell orders)
       let res1 = await fetch(`https://api.radarrelay.com/v2/markets/ZRX-WETH/fills`);
       let json = await res1.json()
 
+      console.log('All available orders: ' + json);
+
       // sort only available sell orders to buy
-      let liquidity = json.filter( function(item: ZRXOrderItem){return (item.type==="SELL");} );
-      console.log(liquidity);
+      const liquidity = json.filter( function(item: ZRXOrderItem){return (item.type === zrxTakerType);} );
+      console.log('Liquidity for order type: ' + liquidity);
 
       // set initial remaining value as user input order amount, and initiate current sell order index
-      let remaining = amount;
-      let cycle = 0;
+      // remaining is the amount the user typed for how much they are selling
 
-      while (remaining > 0) {
+      var remaining = new BigNumber(amount); // leave as big number;\
+      var cycle = 0;
+
+      // pushes orders until requested amount is filled, or liquidity run out
+      // if liquidity runs out, fulcrum becomes the taker
+      while (remaining.isGreaterThan(new BigNumber(0))) {
         // get sell amount for cheapest order
-        let available = liquidity[cycle].filledBaseTokenAmount;
+        // because we subtract from the amount in the token we are buying in, available must be priced in the token we buy
+        // if we are buying 0x with ETH, available must be ETH price, vice versa
+        var available = zrxTradeType === "BUY" ? new BigNumber(liquidity[cycle].filledQuoteTokenAmount) : new BigNumber(liquidity[cycle].filledBaseTokenAmount);
+        // this will be the price of the token we are buying
+        var takerTokenAvailable = zrxTradeType === "BUY" ? new BigNumber(liquidity[cycle].filledBaseTokenAmount) : new BigNumber(liquidity[cycle].filledQuoteTokenAmount);
 
+        // if we run out of liquidity liquidity[cycle] should retun null
         if (available === null) {
           // if we run out of liquidity, make Fulcrum the taker
-          pushOrder(remaining, liquidity[cycle].filledQuoteTokenAmount, accounts[0], fulcrumAddress, liquidity[cycle].feeRecipientAddress, "BUY");
-        }
 
-        if (available < remaining) {
-          // if amount is greater than current existing sell order
-          setTimeout(()=>{}, 501); // each browser can only send 2 requests per second in Radar Relay API
-          pushOrder(available, liquidity[cycle].filledQuoteTokenAmount, accounts[0], liquidity[cycle].makerAddress, liquidity[cycle].feeRecipientAddress,  "BUY")
+          // get previous prices before liquidity ran out
+          takerTokenAvailable = zrxTradeType === "BUY" ? new BigNumber(liquidity[cycle-1].filledBaseTokenAmount) : new BigNumber(liquidity[cycle-1].filledQuoteTokenAmount);
+
+          available = zrxTradeType === "BUY" ? new BigNumber(liquidity[cycle-1].filledQuoteTokenAmount) : new BigNumber(liquidity[cycle-1].filledBaseTokenAmount);
+
+          // scale down request to remain with previous price
+          let ratio = takerTokenAvailable.div(available);
+          takerTokenAvailable = await remaining.multipliedBy(ratio);
+
+          // request remaining fund from Fulcrum
+          pushRadarRelayOrder(remaining.toString(), takerTokenAvailable.toString(), accounts[0], fulcrumAddress, liquidity[cycle-1].feeRecipientAddress, zrxTradeType);
+
+          remaining = new BigNumber(0);
+
+        } else if (available.isLessThan(remaining)) {
+          // if amount is greater than current existing sell order, make one order, then go to the next
+
+          pushRadarRelayOrder(available.toString(), takerTokenAvailable.toString(), accounts[0], liquidity[cycle].makerAddress, liquidity[cycle].feeRecipientAddress,  zrxTradeType)
+
+          // each browser can only send 2 requests per second in Radar Relay API
+          setTimeout(()=>{}, 501);
 
           // decrease remaining balance by current sell order amount
-          remaining = remaining - available;
-        } else {
+          remaining = remaining.minus(available);
+        } else if (available.isGreaterThanOrEqualTo(remaining)) {
           // if buy order will be filled with this current sell order
-          pushOrder(remaining, liquidity[cycle].filledQuoteTokenAmount, accounts[0], liquidity[cycle].makerAddress, liquidity[cycle].feeRecipientAddress, "BUY");
+
+          // scale down order to remaining amount
+
+          let ratio = takerTokenAvailable.div(available);
+
+          takerTokenAvailable = await remaining.multipliedBy(ratio);
+
+          pushRadarRelayOrder(remaining.toString(), takerTokenAvailable.toString(), accounts[0], liquidity[cycle].makerAddress, liquidity[cycle].feeRecipientAddress, zrxTradeType);
 
           // set remaining balance to 0 to exit loop
-          remaining = 0;
+          remaining = new BigNumber(0);
           console.log('done')
         }
 
