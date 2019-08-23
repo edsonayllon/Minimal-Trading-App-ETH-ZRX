@@ -30,20 +30,15 @@ struct Order0x {
 }
 ```
 
-3. After being passed with the trade, Fulcrum acts as "taker" for each 0x order presented until the full amount of the margin trade has been filled.
+3. Based on the size of the request, one or multiple orders are made. This example takes ETH, wraps it to WETH, and trades it for ZRX on Radar Relay.
 
-Reference: https://github.com/bZxNetwork/bZx-monorepo/blob/development/packages/contracts/contracts/zeroex/BZxTo0xV2.sol
+Example transaction from this app: https://etherscan.io/tx/0xd10ee916f471881af094b706cd0af0a27526b1a5c14f4d321f42362d1d628596
 
 All code is in `./client/src/App.tsx`.
 
 ## Running Frontend Client
 
-This app requires metamask. A test network can be used (optional).
-
-1. Set Metamask network to a testnetwork (here Kovan will be used)
-2. Acquire testnet tokens (One Kovan faucet found at https://faucet.kovan.network/)
-3. Wrapped ETH (WETH) generated at https://0x.org/portal/account
-
+This app requires metamask. It works on the mainnet for now. 
 
 Install dependencies:
 
