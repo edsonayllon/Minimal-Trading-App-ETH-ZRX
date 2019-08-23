@@ -30,8 +30,7 @@ providerEngine.addProvider(signer); //replace with Fulcrum's user chosen provide
 providerEngine.addProvider(new RPCSubprovider('https://mainnet.infura.io/XyzEcUCJOQunP1PHWBJF'));
 providerEngine.start();
 
-const NETWORK_ID = process.env.REACT_APP_ETH_NETWORK === "mainnet" ? 1 :
-                   process.env.REACT_APP_ETH_NETWORK === "kovan" ? 42 : 3 // is network mainnet, kovan or ropsten
+const NETWORK_ID = 1 // mainnet network
 
 const contractAddresses = getContractAddressesForNetworkOrThrow(NETWORK_ID);
 
