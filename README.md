@@ -6,9 +6,9 @@ Initially started for sourcing Radar Relay liquidity to Fulcrum. Currently [Fulc
 
 ## Structure
 
-1. A user submits an open order.
+1. A user submits an order request.
 
-2. Based on the size of the trade, liquidity is sourced from RadarRelay and submitted along with the trade in the form of an array of one or more 0x orders.
+2. Based on the size of the request, one or multiple orders are made. This example takes ETH, wraps it to WETH, and trades it for ZRX on Radar Relay.
 
 Structure of each order:
 
@@ -29,8 +29,6 @@ struct Order0x {
   bytes signature;                // Signature for the order
 }
 ```
-
-3. Based on the size of the request, one or multiple orders are made. This example takes ETH, wraps it to WETH, and trades it for ZRX on Radar Relay.
 
 Example transaction from this app: https://etherscan.io/tx/0xd10ee916f471881af094b706cd0af0a27526b1a5c14f4d321f42362d1d628596
 
