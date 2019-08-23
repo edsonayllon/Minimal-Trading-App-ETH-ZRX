@@ -1,8 +1,8 @@
-# Contract-Fillable-0x-Liquidity-For-Fulcrum
+# Radar-Relay-ZRX-Minimal-Trading-App
 
 ## Description
 
-Currently [Fulcrum](https://fulcrum.trade/) sources liquidity form KyberSwap. The objective is to write a typescript client for sourcing 0x order objects using the 0x APIs from Radar Relay: https://developers.radarrelay.com/.
+Initially started for sourcing Radar Relay liquidity to Fulcrum. Currently [Fulcrum](https://fulcrum.trade/) sources liquidity form KyberSwap. The objective is to write a typescript client for sourcing 0x order objects using the 0x APIs from Radar Relay: https://developers.radarrelay.com/.
 
 ## Structure
 
