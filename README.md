@@ -47,7 +47,7 @@ yarn || npm install
 
 Run Client
 ```
-yarn start || npm run yarn
+yarn start || npm run start
 ```
 
 Client should ask for Metamask authorization upon an 0x amount is submitted. Client sends amount to Radar Relay, trading available liquidity in multiple orders if required.
