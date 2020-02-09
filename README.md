@@ -1,3 +1,18 @@
+---
+author: Edson Ayllon
+category: functionality
+tags:
+- DeFi
+- TypeScript
+- React
+- ZRX
+- Web3
+status: complete
+twitter: https://twitter.com/relativeread
+---
+
+## Modular 27-2019
+
 # Radar-Relay-ZRX-Minimal-Trading-App
 
 ## Description
